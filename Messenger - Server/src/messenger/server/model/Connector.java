@@ -6,6 +6,7 @@ import javax.sql.rowset.CachedRowSet;
 
 import com.sun.rowset.CachedRowSetImpl;
 
+/** Base class for database connection. Any class connecting to the database will inherit it. */
 public class Connector 
 {
 	private static final String DRIVER = "com.mysql.jdbc.Driver";

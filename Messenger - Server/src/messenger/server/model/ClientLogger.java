@@ -1,10 +1,8 @@
 package messenger.server.model;
 
-import java.sql.SQLException;
-
 import messenger.Constants;
 
-
+/** Manages user log in or sign up. */ 
 public class ClientLogger extends Connector implements Constants
 {
 	public int logIn(String userName, String password) {

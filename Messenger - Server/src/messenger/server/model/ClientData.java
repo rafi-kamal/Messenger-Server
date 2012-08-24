@@ -2,6 +2,7 @@ package messenger.server.model;
 
 import java.sql.SQLException;
 
+/** Gets and sets information of the clients from the database. */
 public class ClientData extends Connector
 {
 	public String fullName;

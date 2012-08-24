@@ -8,6 +8,10 @@ import java.net.Socket;
 
 import messenger.Constants;
 
+/** 
+ * Base class for server connection. Any class in the server project which will be connected to
+ * any client will inherit this class.
+ */
 public abstract class Connection implements Constants {
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
@@ -16,11 +20,10 @@ public abstract class Connection implements Constants {
 
 	
 	/**
-	 * Sets up connection. Return the port number if connection is successful. 
+	 * Sets up the connection to a client. Return the port number if connection is successful. 
 	 * Otherwise reports error. 
 	 */
-	public int setUpConnection(int portNumber)
-	{
+	public int setUpConnection(int portNumber) {
 		try {
 			server = new ServerSocket(portNumber);
 		} 
@@ -31,13 +34,9 @@ public abstract class Connection implements Constants {
 		return portNumber;
 	}
 
-	/**
-	 * Wait for the clients, set up input and output streams
-	 */
-	protected void waitForClient()
-	{
-		try
-		{
+	/** Wait for clients, set up input and output streams */
+	protected void waitForClient() {
+		try {
 			connection = server.accept();
 			System.out.println("Connection established to port " + connection.getLocalPort() + " with " +
 					connection.getInetAddress() + ":" + connection.getPort());
@@ -46,54 +45,44 @@ public abstract class Connection implements Constants {
 			output.flush();
 			input = new ObjectInputStream(connection.getInputStream());
 		}
-		catch(IOException ioException)
-		{
+		catch(IOException ioException) {
 			System.err.println("Error getting streams");
 			closeConnection();
 			waitForClient();
 		}
 	}
 	
-	/**
-	 * Closes the connection and streams.
-	 */
+	/** Closes the connection and streams */
 	public void closeConnection()
 	{
-		if(connection != null)
+		if(connection == null)
 			return;
 		System.out.println("Closing connection of port " + connection.getLocalPort() + " connected to "
 				+ connection.getInetAddress() + ":" + connection.getLocalPort());
-		try
-		{
+		try {
 			connection.close();
 			if(input != null) input.close();
 			if(output != null) output.close();
 		}
-		catch(IOException ioException)
-		{
+		catch(IOException ioException) {
 			System.err.println("Error closing connection");
 		}
 	}
 	
 
 
-	/**
-	 * Called when the user is ready to send his message
-	 * @param message Message to be sent to the server
-	 */
-	public void sendData(Object message)
-	{
-		try
-		{
+	/** Sends data to the client */
+	public void sendData(Object message) {
+		try {
 			output.writeObject(message);
 			output.flush();
 		}
-		catch(IOException ioException)
-		{
+		catch(IOException ioException) {
 			System.err.println("Error sending data. Please try again");
 			ioException.printStackTrace();
 		}
 	}
 	
+	/** Processes the input stream */
 	abstract protected void processConnection();
 }

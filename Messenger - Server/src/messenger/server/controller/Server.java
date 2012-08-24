@@ -13,14 +13,8 @@ import messenger.server.model.ClientLogger;
 /**
  * Main server class. It has a specific address and port number on which
  * it waits for the clients. After a client connection is being received, 
- * it creates a separate thread for that client. Class <code>ClientHandler</code>
- * then serves for that client. <code>Server</code> class again waits for the clients.<p>
- * 
- * <b>server:</b> All the clients first connect to this port using connectionPortNumber
- * and then requests for a new unique port number.<p>
- * 
- * <b>infoProvider</b> Handles client request for friendliest, friend info etc. using 
- * infoPortNumber. All these tasks are executed in a separate thread (<i>InfoProvider.class</i>).<p>
+ * it creates a separate thread for that client. A <code>ClientHandler</code> object
+ * then serves for that client. <code>Server</code> again waits for the clients.<p>
  * 
  * <b>Date:</b> <i>16 June 2012</i>
  * @author Rafi
@@ -28,6 +22,7 @@ import messenger.server.model.ClientLogger;
  */
 public class Server extends Connection
 {	
+	/** Maintains a <code>ClientID<code>-{@link ClientHandler} list for all online clients. */
 	static Map<Integer, ClientHandler> clientConnections = new ConcurrentHashMap<Integer, ClientHandler>();
 	static int portNumber = 5555;
 	private ExecutorService threadExecutor = Executors.newCachedThreadPool();
@@ -64,13 +59,15 @@ public class Server extends Connection
 	}
 	
 	/**
-	 * Processes the connections received from the clients.
-	 * Creates a new <code>ClientHandler.</code>
+	 * Processes the log in and sign up requests received from the clients. 
+	 * Gets the client ID and creates a new <code>ClientHandler</code> on successful login.
 	 * Further processing is done by the <code>ClientHandler</code>.
-	 * Gets the <code>clientID</code>. Assigns a new port in the <code>ClientHandler</code>
+	 * Assigns a new port to the <code>ClientHandler</code>
 	 * by its <code>setUpConnection</code> method where the new client will communicate.
-	 * Sends this port number to the client. Client then reconnects with the <code>ClientHandler</code> with that port number.
-	 * Server puts a new entry (<code>clientID</code>, <code>ClientHandler</code>) in the <code>ClientHandler</code>.
+	 * Sends this client ID and port number to the client.
+	 * Client then reconnects to the <code>ClientHandler</code> with that port number.
+	 * Server puts a new entry (<code>clientID</code>, <code>ClientHandler</code>)
+	 * in the <code>clientConnections</code>.
 	 */
 	@Override
 	protected void processConnection() {
@@ -121,6 +118,7 @@ public class Server extends Connection
 		}
 	}
 	
+	/** When a new client logs in or logs out, sends the new online user list to every logged in client. */ 
 	static synchronized public void updateLists() {
 		
 		Set<Integer> clients = clientConnections.keySet();

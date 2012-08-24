@@ -12,17 +12,15 @@ import messenger.server.Connection;
 
 /**
  * After a client connection is received by the server,
- * it creates a new thread with a <code>ClientHandler</code>
- * It is responsible for creating a client to client connection.<p>
+ * it creates a new thread with a <code>ClientHandler.</code>
+ * It is responsible for conducting client-to-client connection.<p>
  * 
  * <strong>Date:</strong> <i>17 June 2012</i>
  * @author Rafi
  *
  */
-
 public class ClientHandler extends Connection implements Runnable
-{
-	private String message;
+{ 
 	InfoProvider infoProvider;
 	
 	private int clientID;
@@ -57,7 +55,7 @@ public class ClientHandler extends Connection implements Runnable
 	/**
 	 * Receives input data from from the client.
 	 * If the client is connected to another client (<i>friend</i>),
-	 * send this data to that client.
+	 * send this data to that client. Otherwise reports error.
 	 */
 	@Override
 	protected void processConnection() {
@@ -66,7 +64,7 @@ public class ClientHandler extends Connection implements Runnable
 			
 			try {
 				int receiverID = (Integer) input.readObject();
-				message = (String) input.readObject();
+				String message = (String) input.readObject();
 				
 				ClientHandler recieverHandler = Server.clientConnections.get(receiverID);
 				if(recieverHandler == null) {

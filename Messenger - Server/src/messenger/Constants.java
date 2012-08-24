@@ -1,5 +1,6 @@
 package messenger;
 
+/** Holds the constants that are common in both client and server */
 public interface Constants {
 	int FRIEND_LIST = 1001;
 	int ALL_LIST = 1002;

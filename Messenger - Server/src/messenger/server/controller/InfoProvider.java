@@ -5,6 +5,7 @@ import java.util.Set;
 
 import messenger.server.Connection;
 
+/** Handle client requests and sends non-message data to the client (e.g. user lists or user info). */
 public class InfoProvider extends Connection implements Runnable {
 
 	private int infoPortNumber;
@@ -23,8 +24,7 @@ public class InfoProvider extends Connection implements Runnable {
 	
 	@Override
 	protected void processConnection() {
-		try
-		{
+		try {
 			int request = (Integer) input.readObject();
 			
 			switch(request) {
@@ -47,14 +47,17 @@ public class InfoProvider extends Connection implements Runnable {
 		}
 	}
 	
+	/** Sends info (name, address e.g.) about a client. */
 	private void sendUserInfo() {
 		
 	}
 
+	/*** Sends the <b>Friend list</b>. */
 	private void sendFriendList() {
 		
 	}
-
+	
+	/*** Sends the <b>All User list.</b> */
 	public void sendAllUserList() throws IOException {
 		
 		Set<Integer> allOnlineSet = getAllOnlineUserList();
@@ -74,6 +77,7 @@ public class InfoProvider extends Connection implements Runnable {
 				connection.getInetAddress() + ":" + connection.getPort());
 	}
 	
+	/** Gets the list of all online users. */
 	private Set<Integer> getAllOnlineUserList() {
 		return Server.clientConnections.keySet();
 	}
