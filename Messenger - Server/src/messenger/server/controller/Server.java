@@ -38,7 +38,7 @@ public class Server extends Connection
 	public int setUpConnection(int portNumber) {
 		int returnValue = super.setUpConnection(portNumber);
 		if(returnValue == CONNECTION_ERROR) {
-			System.out.println("System exiting.");
+			System.err.println("\nSystem exiting.");
 			System.exit(1);
 		}		
 		return returnValue;
