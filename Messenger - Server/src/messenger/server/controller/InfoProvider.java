@@ -1,6 +1,8 @@
 package messenger.server.controller;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import messenger.server.Connection;
@@ -60,13 +62,7 @@ public class InfoProvider extends Connection implements Runnable {
 	/*** Sends the <b>All User list.</b> */
 	public void sendAllUserList() throws IOException {
 		
-		Set<Integer> allOnlineSet = getAllOnlineUserList();
-		Object[] allOnlineList = allOnlineSet.toArray();
-		String[] allOnline = new String[allOnlineList.length];
-		
-		int index = 0;		
-		for(Object user : allOnlineList)
-			allOnline[index++] = user.toString();
+		Map<Integer, String> allOnline = getAllOnlineUsers();
 		
 		output.writeObject(ALL_LIST);
 		output.flush();
@@ -78,7 +74,14 @@ public class InfoProvider extends Connection implements Runnable {
 	}
 	
 	/** Gets the list of all online users. */
-	private Set<Integer> getAllOnlineUserList() {
-		return Server.clientConnections.keySet();
+	private Map<Integer, String> getAllOnlineUsers() {
+		Set<Integer> clientIDs = Server.clientConnections.keySet();
+		Map<Integer, String> clients = new HashMap<Integer, String>();
+		
+		for(Integer client : clientIDs) {
+			String clientName = Server.clientConnections.get(client).getClientName();
+			clients.put(client, clientName);
+		}
+		return clients;
 	}
 }

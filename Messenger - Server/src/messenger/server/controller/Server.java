@@ -94,6 +94,7 @@ public class Server extends Connection
 					
 					sendData(newPort);
 					sendData(clientID);
+					sendData(newClient.getClientName());
 					System.out.println("Reconnectng in port " + newPort);
 				}
 				else

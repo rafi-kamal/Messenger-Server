@@ -5,9 +5,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.List;
 
 import messenger.server.Connection;
+import messenger.server.model.ClientData;
 
 
 /**
@@ -25,9 +27,16 @@ public class ClientHandler extends Connection implements Runnable
 	
 	private int clientID;
 	private int portNumber;
+	private ClientData clientData;
 	
 	public ClientHandler(int clientID) {
 		this.clientID = clientID;
+		try {
+			clientData = new ClientData();
+			clientData.fetchClientData(clientID);
+		} catch(SQLException exception) {
+			System.err.println("Client Data not found");
+		}
 	}
 	
 	public void run() {
@@ -97,5 +106,12 @@ public class ClientHandler extends Connection implements Runnable
 		infoProvider.closeConnection();
 		Server.clientConnections.remove(clientID);
 		Server.updateLists();
+	}
+	
+	public String getClientName() {
+		if(clientData != null)	
+			return clientData.fullName;
+		else 
+			return "";
 	}
 }
