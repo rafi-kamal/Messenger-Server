@@ -41,6 +41,7 @@ public class TransferFile implements Runnable
 		senderOutput = new ObjectOutputStream(senderConnection.getOutputStream());
 		senderOutput.flush();
 		senderInput = new ObjectInputStream(senderConnection.getInputStream());
+		System.out.println("Got streams");
 	}
 	
 	private void transferFile() throws IOException, ClassNotFoundException
