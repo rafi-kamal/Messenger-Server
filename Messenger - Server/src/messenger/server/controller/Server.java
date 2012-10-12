@@ -1,13 +1,19 @@
 package messenger.server.controller;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import messenger.server.Connection;
+import messenger.Constants;
 import messenger.server.model.ClientLogger;
+import messenger.server.view.ServerGUI;
 
 
 /**
@@ -20,28 +26,40 @@ import messenger.server.model.ClientLogger;
  * @author Rafi
  *
  */
-public class Server extends Connection
+public class Server implements Constants
 {	
 	/** Maintains a <code>ClientID<code>-{@link ClientHandler} list for all online clients. */
-	static Map<Integer, ClientHandler> clientConnections = new ConcurrentHashMap<Integer, ClientHandler>();
+	public static Map<Integer, ClientHandler> clientConnections = new ConcurrentHashMap<Integer, ClientHandler>();
 	static int portNumber = 5555;
+	private static int infoPortNumber = 5556;
 	private ExecutorService threadExecutor = Executors.newCachedThreadPool();
 	private ClientLogger clientLogger;
+	ServerGUI serverGUI;
+
+	private ObjectOutputStream output;
+	private ObjectInputStream input;
+	private Socket connection;
+	private ServerSocket server;
 	
-	public Server()
-	{
+	private ServerSocket infoServer;
+	private Socket infoProviderConnection;
+	private InfoProvider infoProvider;
+	
+	public Server() {
 		clientLogger = new ClientLogger();
-		setUpConnection(portNumber);
+		serverGUI = new ServerGUI();
+		serverGUI.setVisible(true);
 	}
 
-	@Override
-	public int setUpConnection(int portNumber) {
-		int returnValue = super.setUpConnection(portNumber);
-		if(returnValue == CONNECTION_ERROR) {
-			System.err.println("\nSystem exiting.");
+	public ServerSocket setUpConnection(int portNumber) {
+		try {
+			return new ServerSocket(portNumber);
+		}
+		catch(IOException exception) {
+			System.err.println("Error setting up server connection");
 			System.exit(1);
-		}		
-		return returnValue;
+			return null;
+		}
 	}
 	
 	/**
@@ -49,11 +67,27 @@ public class Server extends Connection
 	 * close the connection and then wait for the client again.
 	 */
 	private void run() {
-		System.out.println("Server has set-up.\n");	
+		serverGUI.showMessage("Server has set-up.\n");	
 		
+		server = setUpConnection(portNumber);
+		infoServer = setUpConnection(infoPortNumber);
 		while(true) {
 			waitForClient();
 			processConnection();
+		}
+	}
+	
+	/** Wait for clients, set up input and output streams */
+	protected void waitForClient() {
+		try {
+			connection = server.accept();
+
+			output = new ObjectOutputStream(connection.getOutputStream());
+			output.flush();
+			input = new ObjectInputStream(connection.getInputStream());
+		}
+		catch(IOException ioException) {
+			System.err.println("Error getting streams");
 			closeConnection();
 		}
 	}
@@ -69,9 +103,9 @@ public class Server extends Connection
 	 * Server puts a new entry (<code>clientID</code>, <code>ClientHandler</code>)
 	 * in the <code>clientConnections</code>.
 	 */
-	@Override
 	protected void processConnection() {
 		
+		boolean loginSuccessful = false;
 		try {
 			int messageCode = (Integer) input.readObject();
 			String userName = (String) input.readObject();
@@ -79,29 +113,39 @@ public class Server extends Connection
 			
 			switch(messageCode) {				
 			case LOGIN_REQUEST:
-				System.out.println("Login request found from user " + userName +
+				serverGUI.showMessage("Login request found from user " + userName +
 						"@" + connection.getInetAddress() + ":" + connection.getPort());
-				int clientID = clientLogger.logIn(userName, password);
-				
+				final int clientID = clientLogger.logIn(userName, password);
+				infoProvider = null;
 				if(clientID != LOGIN_FAILED) {
+					loginSuccessful = true;
+					Thread infoThread = new Thread(new Runnable() {
+						
+						@Override
+						public void run() {
+							try {
+								infoProvider = startInfoProvider(clientID);
+							} catch (IOException e) {
+								serverGUI.showMessage("Error starting infoprovider");
+							}
+						}
+					});
+					infoThread.start();
 					sendData(LOGIN_SUCCESSFUL);
-					ClientHandler newClient = new ClientHandler(clientID);
-					int newPort = newClient.setUpConnection();
+					while(infoProvider == null) {};
+					ClientHandler newClient = 
+							new ClientHandler(this, clientID, connection, output, input, infoProvider);
 					threadExecutor.execute(newClient);
 					
 					clientConnections.put(clientID, newClient);
-					newClient.startInfoProvider();
-					
-					sendData(newPort);
 					sendData(clientID);
 					sendData(newClient.getClientName());
-					System.out.println("Reconnectng in port " + newPort);
 				}
 				else
 					sendData(LOGIN_FAILED);
 				break;
 			case SIGNUP_REQUEST:
-				System.out.println("Signup request found from user " + userName +
+				serverGUI.showMessage("Signup request found from user " + userName +
 						"@" + connection.getInetAddress() + ":" + connection.getPort());
 				boolean isSuccessful = clientLogger.signUp(userName, password);
 				if(isSuccessful)
@@ -112,29 +156,83 @@ public class Server extends Connection
 			}
 		}
 		catch(ClassNotFoundException classNotFoundException) {
-			System.err.println("Unknown object type recieved");
+			serverGUI.showMessage("Unknown object type recieved");
 		}
 		catch(IOException ioException) {
-			System.err.println("Error with input stream");
+			serverGUI.showMessage("Error with input stream");
+		}
+		
+		if(!loginSuccessful)
+			processConnection();
+	}
+	
+
+	/** Closes the connection and streams */
+	public void closeConnection()
+	{
+		if(connection == null)
+			return;
+		try {
+			connection.close();
+			if(infoProviderConnection != null) infoProviderConnection.close();
+			if(input != null) input.close();
+			if(output != null) output.close();
+		}
+		catch(IOException ioException) {
+			System.err.println("Error closing connection");
 		}
 	}
 	
+	/** Sends data to the client */
+	public void sendData(Object message) {
+		try {
+			output.writeObject(message);
+			output.flush();
+		}
+		catch(IOException ioException) {
+			System.err.println("Error sending data. Please try again");
+			ioException.printStackTrace();
+		}
+	}
+	
+	private InfoProvider startInfoProvider(int clientID) throws IOException {
+		infoProviderConnection = infoServer.accept();
+		InfoProvider infoProvider = new InfoProvider(this, infoProviderConnection, clientID);
+		return infoProvider;
+	}
+	
 	/** When a new client logs in or logs out, sends the new online user list to every logged in client. */ 
-	static synchronized public void updateLists() {
-		
+	synchronized public void updateLists() {
+		Map<Integer, String> allUsers = getAllOnlineUsers();
+		serverGUI.setListValues(allUsers);
 		Set<Integer> clients = clientConnections.keySet();
 		for(int clientID : clients) {
 			InfoProvider infoProvider = clientConnections.get(clientID).infoProvider;
 			
 			try {
 				infoProvider.sendAllUserList();
-				System.out.println("Userlist sent to client " + clientID);
+				serverGUI.showMessage("Userlist sent to client " + clientID);
 			} 
 			catch (IOException exception) {
-				System.err.println("Error sending userlist to client " + clientID);
+				serverGUI.showMessage("Error sending userlist to client " + clientID);
 			}
 		}
 	}
+	
+	/** Gets the list of all online users. */
+	public static Map<Integer, String> getAllOnlineUsers() {
+		Set<Integer> clientIDs = Server.clientConnections.keySet();
+		Map<Integer, String> clients = new HashMap<Integer, String>();
+		
+		for(Integer client : clientIDs) {
+			String clientName = Server.clientConnections.get(client).getClientName();
+			clients.put(client, clientName);
+		}
+		System.out.println(clientIDs);
+		System.out.println(clients);
+		return clients;
+	}
+	
 	
 	public static void main(String args[]) {
 		Server server = new Server();

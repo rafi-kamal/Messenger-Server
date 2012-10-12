@@ -8,7 +8,7 @@ import java.net.Socket;
 import java.sql.SQLException;
 import java.util.List;
 
-import messenger.server.Connection;
+import messenger.server.ServerConnection;
 import messenger.server.model.ClientData;
 
 
@@ -21,44 +21,41 @@ import messenger.server.model.ClientData;
  * @author Rafi
  *
  */
-public class ClientHandler extends Connection implements Runnable
+public class ClientHandler extends ServerConnection implements Runnable
 { 
 	InfoProvider infoProvider;
 	
 	private int clientID;
 	private int portNumber;
 	private ClientData clientData;
+	private Server server;
+	private Socket connection;
 	
-	public ClientHandler(int clientID) {
+	public ClientHandler(Server server, int clientID, Socket connection,
+			ObjectOutputStream output, ObjectInputStream input, InfoProvider infoProvider) {
+		this.server = server;
 		this.clientID = clientID;
+		this.connection = connection;
+		this.input = input;
+		this.output = output;
+		this.infoProvider = infoProvider;
+		
 		try {
 			clientData = new ClientData();
 			clientData.fetchClientData(clientID);
 		} catch(SQLException exception) {
-			System.err.println("Client Data not found");
+			server.serverGUI.showMessage("Client Data not found");
+		} catch(ArrayIndexOutOfBoundsException exception) {
+			server.serverGUI.showMessage("Client Data not found");
 		}
 	}
 	
 	public void run() {
-		waitForClient();
-		processConnection();
-		closeConnection();
-	}
-	
-	/**
-	 * Sets up e new connection with a different and unique port number.
-	 * 
-	 * @return The port number on which the connection is being made.
-	 */
-	public int setUpConnection() {
-		portNumber = ++Server.portNumber;
-		return super.setUpConnection(portNumber);
-	}
-	
-	public void startInfoProvider() {
-		infoProvider = new InfoProvider(++Server.portNumber);
+
 		Thread infoThread = new Thread(infoProvider);
 		infoThread.start();
+		processConnection();
+		closeConnection();
 	}
 	
 	/**
@@ -78,20 +75,18 @@ public class ClientHandler extends Connection implements Runnable
 				ClientHandler recieverHandler = Server.clientConnections.get(receiverID);
 				if(recieverHandler == null) {
 					sendData(ERROR_CODE);
-					sendData(receiverID + " is not available");
+					sendData("Not available");
 				}
 				else {
 					recieverHandler.sendData(clientID);
 					recieverHandler.sendData(message);
 				}
-				
-				System.out.println(message);
 			}
 			catch(ClassNotFoundException classNotFoundException) {
-				System.err.println("Unknown object type recieved.");
+				server.serverGUI.showMessage("Unknown object type recieved.");
 			}
 			catch(IOException ioException) {
-				System.err.println("Client terminated connection.\n");
+				server.serverGUI.showMessage("Client terminated connection.\n");
 				closeConnection();
 				break;
 			}
@@ -102,10 +97,10 @@ public class ClientHandler extends Connection implements Runnable
 	public void closeConnection() {
 		super.closeConnection();
 		
-		System.out.println("Connection terminated for client " + clientID + "\n");
+		server.serverGUI.showMessage("Connection terminated for client " + clientID + "\n");
 		infoProvider.closeConnection();
 		Server.clientConnections.remove(clientID);
-		Server.updateLists();
+		server.updateLists();
 	}
 	
 	public String getClientName() {
@@ -113,5 +108,13 @@ public class ClientHandler extends Connection implements Runnable
 			return clientData.fullName;
 		else 
 			return "";
+	}
+	
+	public String getIP() {
+		return connection.getInetAddress() + "";
+	}
+	
+	public int getPort() {
+		return connection.getPort();
 	}
 }

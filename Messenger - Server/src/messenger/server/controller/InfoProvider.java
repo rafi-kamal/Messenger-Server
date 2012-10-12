@@ -1,30 +1,51 @@
 package messenger.server.controller;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Map;
-import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
-import messenger.server.Connection;
+import messenger.Constants;
+import messenger.server.ServerConnection;
+import messenger.server.controller.filetransfer.TransferFile;
 
 /** Handle client requests and sends non-message data to the client (e.g. user lists or user info). */
-public class InfoProvider extends Connection implements Runnable {
+public class InfoProvider extends ServerConnection implements Runnable, Constants {
 
-	private int infoPortNumber;
+	private Server server;
+	private static int fileTransferPort = 5557;
+	private ServerSocket fileServer;
+	private int clientID;
 	
-	public InfoProvider(int infoPortNumber) {
-		this.infoPortNumber = infoPortNumber;
+	public InfoProvider(Server server, Socket connection, int clientID) {
+		this.server = server;
+		this.connection = connection;
+		this.clientID = clientID;
 	}
 	
 	@Override
 	public void run() {
-		setUpConnection(infoPortNumber);
-		waitForClient();
-		Server.updateLists();
+		getStreams();
+		server.updateLists();
 		processConnection();
 	}
 	
-	@Override
+	private void getStreams() {
+		try {
+			output = new ObjectOutputStream(connection.getOutputStream());
+			output.flush();
+			input = new ObjectInputStream(connection.getInputStream());
+		}
+		catch(IOException ioException) {
+			System.err.println("Error getting streams in infoprovider");
+			closeConnection();
+		}
+	}
+	
 	protected void processConnection() {
 		try {
 			int request = (Integer) input.readObject();
@@ -33,55 +54,70 @@ public class InfoProvider extends Connection implements Runnable {
 			case ALL_LIST:
 				sendAllUserList();
 				break;
-			case FRIEND_LIST:
-				sendFriendList();
-				break;
-			case USER_INFO:
-				sendUserInfo();
+			case SEND_FILE:
+				int recieverID = (Integer) input.readObject();
+				ClientHandler recieverHandler = Server.clientConnections.get(recieverID);
+				
+				recieverHandler.infoProvider.sendDelayedMessage(RECEIVE_FILE);
+				server.serverGUI.showMessage(clientID + 
+						" is trying to send a file to " + recieverID);
+				Socket recieverConnection = establishFileTransferConnection();
+				int recieverResponse = (Integer) input.readObject();
+				if(recieverResponse == READY) {
+					sendDelayedMessage(READY);
+					Socket senderConnection = establishFileTransferConnection();
+					TransferFile transferFile = new TransferFile(senderConnection, 
+							recieverConnection, server.serverGUI);
+					Thread transferThread = new Thread(transferFile);
+					transferThread.start();
+				} else {
+					sendData(CANCEL);
+				}
 				break;
 			}
 		}
 		catch(ClassNotFoundException classNotFoundException) {
-			System.err.println("Unknown object type recieved");
+			server.serverGUI.showMessage("Unknown object type recieved");
 		}
 		catch(IOException ioException) {
-			System.err.println("Error sending data");
+			server.serverGUI.showMessage("Error sending data");
 		}
 	}
 	
-	/** Sends info (name, address e.g.) about a client. */
-	private void sendUserInfo() {
-		
+	private void sendDelayedMessage(final Object message) {
+		Timer timer = new Timer();
+		timer.schedule(new TimerTask() {
+			
+			@Override
+			public void run() {
+				sendData(message);
+			}
+		}, 10);
 	}
-
-	/*** Sends the <b>Friend list</b>. */
-	private void sendFriendList() {
-		
+	
+	private Socket establishFileTransferConnection() {
+		try {
+			if(fileServer == null || fileServer.isClosed())
+				fileServer = new ServerSocket(fileTransferPort);
+			return fileServer.accept();
+		} catch(IOException exception) {
+			server.serverGUI.showMessage("Error setting up fileServer");
+			return null;
+		}
 	}
 	
 	/*** Sends the <b>All User list.</b> */
 	public void sendAllUserList() throws IOException {
 		
-		Map<Integer, String> allOnline = getAllOnlineUsers();
+		Map<Integer, String> allOnline = Server.getAllOnlineUsers();
+		
+		/*server.serverGUI.showMessage("All user list sending from " + connection.getLocalPort() + " to " + 
+				connection.getInetAddress() + ":" + connection.getPort());*/
 		
 		output.writeObject(ALL_LIST);
 		output.flush();
 		output.writeObject(allOnline);
 		output.flush();
-		
-		System.out.println("All user list sent from " + connection.getLocalPort() + " to " + 
-				connection.getInetAddress() + ":" + connection.getPort());
-	}
 	
-	/** Gets the list of all online users. */
-	private Map<Integer, String> getAllOnlineUsers() {
-		Set<Integer> clientIDs = Server.clientConnections.keySet();
-		Map<Integer, String> clients = new HashMap<Integer, String>();
-		
-		for(Integer client : clientIDs) {
-			String clientName = Server.clientConnections.get(client).getClientName();
-			clients.put(client, clientName);
-		}
-		return clients;
 	}
 }

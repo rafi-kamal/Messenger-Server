@@ -12,13 +12,12 @@ import messenger.Constants;
  * Base class for server connection. Any class in the server project which will be connected to
  * any client will inherit this class.
  */
-public abstract class Connection implements Constants {
+public abstract class ServerConnection implements Constants {
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
 	protected Socket connection;
 	protected ServerSocket server;
 
-	
 	/**
 	 * Sets up the connection to a client. Return the port number if connection is successful. 
 	 * Otherwise reports error. 
@@ -38,8 +37,6 @@ public abstract class Connection implements Constants {
 	protected void waitForClient() {
 		try {
 			connection = server.accept();
-			System.out.println("Connection established to port " + connection.getLocalPort() + " with " +
-					connection.getInetAddress() + ":" + connection.getPort());
 
 			output = new ObjectOutputStream(connection.getOutputStream());
 			output.flush();
@@ -48,7 +45,6 @@ public abstract class Connection implements Constants {
 		catch(IOException ioException) {
 			System.err.println("Error getting streams");
 			closeConnection();
-			waitForClient();
 		}
 	}
 	
@@ -57,8 +53,6 @@ public abstract class Connection implements Constants {
 	{
 		if(connection == null)
 			return;
-		System.out.println("Closing connection of port " + connection.getLocalPort() + " connected to "
-				+ connection.getInetAddress() + ":" + connection.getLocalPort());
 		try {
 			connection.close();
 			if(input != null) input.close();

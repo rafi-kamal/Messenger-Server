@@ -9,9 +9,10 @@ public class ClientData extends Connector {
 	public String dataOfBirth;
 	public String institution;
 	public String quote;
+	public String userName;
 
 	public void fetchClientData(int ID) throws SQLException {
-		connect();
+		/*connect();
 		super.query("SELECT `Full Name`, `Address`, `Date of Birth`, `Institution`, `Quote` FROM client_info WHERE ID = "
 				+ ID);
 
@@ -22,6 +23,18 @@ public class ClientData extends Connector {
 		institution = rowSet.getString(4);
 		quote = rowSet.getString(5);
 
+		close();*/
+		fetchClientUserName(ID);
+	}
+	
+	public void fetchClientUserName(int ID) throws SQLException {
+		connect();
+		super.query("SELECT Username FROM client_logger WHERE ID = "
+				+ ID);
+		rowSet.next();
+		fullName = rowSet.getString(1);
+
+		System.out.println(userName);
 		close();
 	}
 
