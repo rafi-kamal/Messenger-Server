@@ -94,12 +94,8 @@ public class Server implements Constants
 	
 	/**
 	 * Processes the log in and sign up requests received from the clients. 
-	 * Gets the client ID and creates a new <code>ClientHandler</code> on successful login.
+	 * Gets the client ID and creates a new <code>ClientHandler</code> on each successful login.
 	 * Further processing is done by the <code>ClientHandler</code>.
-	 * Assigns a new port to the <code>ClientHandler</code>
-	 * by its <code>setUpConnection</code> method where the new client will communicate.
-	 * Sends this client ID and port number to the client.
-	 * Client then reconnects to the <code>ClientHandler</code> with that port number.
 	 * Server puts a new entry (<code>clientID</code>, <code>ClientHandler</code>)
 	 * in the <code>clientConnections</code>.
 	 */
