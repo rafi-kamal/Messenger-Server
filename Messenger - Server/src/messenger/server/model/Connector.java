@@ -14,7 +14,7 @@ public class Connector {
 	private static final String DRIVER = "com.mysql.jdbc.Driver";
 	private static final String DATABASE_URL = "jdbc:mysql://localhost/client";
 	private static final String USERNAME = "root";
-	private static final String PASSWORD = "dmjajgma@";
+	private static final String PASSWORD = "pass";
 
 	protected CachedRowSet rowSet;
 
